@@ -11,7 +11,11 @@ const STATUS = {
   ReadyForInspection: ["Ready for inspection", ""], Passed: ["Passed · 10% held", "pass"],
   Rejected: ["Rejected · refunded", "fail"], Completed: ["Completed", "pass"],
 };
-const S = { account: null, token: CONFIG.token, company: undefined, balance: null, lots: [], media: {}, lookups: {} };
+const S = { account: null, token: CONFIG.token, company: undefined, balance: null, lots: [], media: {}, lookups: {}, publicLot: undefined };
+// ?lot=0001 opens one passport straight from the chain, with no wallet and no account.
+const PUBLIC_LOT = new URLSearchParams(location.search).get("lot");
+// Lots whose whole story is already settled on chain, linked from the front page and the README.
+const PROVEN = [["0001", "passed"], ["0002", "rejected, refunded"]];
 const $ = (id) => document.getElementById(id);
 const esc = (t) => String(t ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const amount = (v) => `${formatUnits(v, S.token.decimals)} ${esc(S.token.symbol)}`;
@@ -47,6 +51,14 @@ async function load() {
     return render();
   }
   S.error = null;
+  if (PUBLIC_LOT) {
+    const l = await view("get_lot", { token_id: PUBLIC_LOT }).catch(() => null);
+    S.publicLot = l || null;
+    if (l) {
+      const t = await view("nft_token", { token_id: l.token_id }).catch(() => null);
+      S.media[l.token_id] = t?.metadata?.media;
+    }
+  }
   if (S.account) {
     const [company, lots, balance] = await Promise.all([
       view("get_company", { account_id: S.account }),
@@ -90,8 +102,10 @@ function render() {
     return;
   }
   if (S.error) { app.innerHTML = `<section class="notice"><h2>Contract not reachable</h2><p>${esc(S.error)}</p></section>`; return; }
+  if (PUBLIC_LOT) { app.innerHTML = publicView(); return; }
   if (!S.account) {
-    app.innerHTML = `<section class="card"><h2>Connect a NEAR wallet</h2><p class="lead">Use a ${esc(CONFIG.network)} account. Every action in this app is a real transaction you can open on the explorer.</p><div class="row"><button type="button" class="primary" data-act="connect">Connect wallet</button><a href="./demo.html">Or try the offline demo</a></div></section>`;
+    app.innerHTML = `<section class="card"><h2>Connect a NEAR wallet</h2><p class="lead">Use a ${esc(CONFIG.network)} account. Every action in this app is a real transaction you can open on the explorer.</p><div class="row"><button type="button" class="primary" data-act="connect">Connect wallet</button><a href="./demo.html">Or try the offline demo</a></div></section>
+      <section class="card"><h2>Or read a finished passport, no wallet needed</h2><p class="lead">View proven lots: ${provenLinks()}</p></section>`;
     return;
   }
   app.innerHTML = `
@@ -99,7 +113,7 @@ function render() {
     ${S.company ? findCard() : ""}
     ${S.company ? dealCard() : ""}
     <section class="card" aria-labelledby="lotsH"><div class="row" style="justify-content:space-between"><h2 id="lotsH">Your lots</h2><div class="row"><button type="button" data-act="csv" ${S.lots.length ? "" : "disabled"}>Export CSV for your accountant</button><button type="button" data-act="reload">Refresh</button></div></div>
-      ${S.lots.length ? S.lots.map(lotCard).join("") : `<p class="lead">No lots yet. Create one above, or ask your buyer to create one with your account as supplier or inspector.</p>`}
+      ${S.lots.length ? S.lots.map((l) => lotCard(l)).join("") : `<p class="lead">No lots yet. Create one above, or ask your buyer to create one with your account as supplier or inspector.</p>`}
     </section>`;
 }
 
@@ -174,8 +188,8 @@ function dealCard() {
     </form></section>`;
 }
 
-function lotCard(l) {
-  const me = S.account;
+function lotCard(l, readOnly = false) {
+  const me = readOnly ? null : S.account;
   const roles = [l.buyer === me && "buyer", l.supplier === me && "supplier", l.inspector === me && "inspector", l.owner_id === me && l.owner_id !== l.buyer && "holder"].filter(Boolean);
   const [label, tone] = STATUS[l.status] || [l.status, ""];
   const img = S.media[l.token_id];
@@ -195,15 +209,36 @@ function lotCard(l) {
         <div><small>Paid / refunded</small><b>${amount(l.paid_to_supplier)} / ${amount(l.refunded_to_buyer)}</b></div>
       </div>
       ${l.cartons.length ? `<p>Cartons to open: <span class="mono">${l.cartons.map((c) => "#" + c).join(" · ")}</span>${l.defects != null ? ` · result <b>${l.defects} of ${l.sample_size}</b> defective` : ""}</p>` : ""}
-      ${actionsFor(l, roles)}
-      ${historyFor(l)}
+      ${readOnly ? "" : actionsFor(l, roles)}
+      ${historyFor(l, readOnly)}
     </div></article>`;
+}
+
+const provenLinks = () =>
+  PROVEN.map(([id, note]) => `<a href="?lot=${id}">#${id} (${esc(note)})</a>`).join(" · ");
+
+// One passport, read straight from the chain: get_lot for the record, nft_token for the card image.
+function publicView() {
+  const l = S.publicLot;
+  if (l === undefined) return `<section class="card"><h2>Reading passport #${esc(PUBLIC_LOT)} from the chain…</h2></section>`;
+  if (l === null) {
+    return `<section class="notice"><h2>No passport #${esc(PUBLIC_LOT)}</h2>
+      <p>Contract <span class="mono">${esc(CONFIG.contractId)}</span> has no lot with that id. Try ${provenLinks()}, or <a href="./">open the app</a>.</p></section>`;
+  }
+  return `<section class="card"><div class="row" style="justify-content:space-between">
+      <h2>Public record · passport #${esc(l.token_id)}</h2>
+      <a href="${explorerAccount(CONFIG.contractId)}" target="_blank" rel="noopener">Open the contract on the explorer</a>
+    </div>
+    <p class="lead">Read straight from <span class="mono">${esc(CONFIG.contractId)}</span> with view calls only — no wallet, no account, nothing to sign. ${S.account ? `<a href="./">Back to your lots</a>` : `Connect a wallet above to act on your own lots.`}</p>
+    <p class="hint">Other proven lots: ${provenLinks()}</p>
+  </section>
+  ${lotCard(l, true)}`;
 }
 
 const when = (ns) => new Date(Number(BigInt(ns) / 1_000_000n)).toISOString().replace("T", " ").slice(0, 16) + " UTC";
 const KIND = { funded: "Paid into passport", paid_supplier: "90% paid to supplier", refund_buyer: "Refunded to buyer", release_retention: "10% released to supplier" };
 
-function historyFor(l) {
+function historyFor(l, readOnly = false) {
   const pay = (l.payments || []).map((p) => `<tr><td>${when(p.at)}</td><td>${esc(KIND[p.kind] || p.kind)}</td><td class="mono">${esc(p.to)}</td><td>${amount(p.amount)}</td><td>${p.settled ? "settled" : `<b class="bad">failed, waiting for retry</b>`}</td></tr>`).join("");
   const holders = (l.holders || []).map((h, i, a) => `<tr><td>${when(h.since)}</td><td class="mono">${esc(h.account_id)}</td><td>${i === a.length - 1 ? "current holder" : "past holder"}</td></tr>`).join("");
   const failed = (l.payments || []).some((p) => !p.settled);
@@ -211,7 +246,7 @@ function historyFor(l) {
     <div class="tbl"><table><thead><tr><th>When</th><th>What</th><th>To</th><th>Amount</th><th>State</th></tr></thead><tbody>${pay || `<tr><td colspan="5">No payments yet</td></tr>`}</tbody></table></div>
     <div class="tbl"><table><thead><tr><th>Since</th><th>Holder</th><th></th></tr></thead><tbody>${holders}</tbody></table></div>
     ${l.report_hash ? `<p class="hint">Inspection report hash: <span class="mono">${esc(l.report_hash)}</span></p>` : ""}
-    ${failed ? `<div class="row"><button type="button" data-act="retry" data-id="${esc(l.token_id)}">Retry the failed payout</button></div><p class="hint">The receiver was probably not registered with the token. Register it, then retry: money only goes to the recorded receiver.</p>` : ""}
+    ${failed && !readOnly ? `<div class="row"><button type="button" data-act="retry" data-id="${esc(l.token_id)}">Retry the failed payout</button></div><p class="hint">The receiver was probably not registered with the token. Register it, then retry: money only goes to the recorded receiver.</p>` : ""}
   </details>`;
 }
 

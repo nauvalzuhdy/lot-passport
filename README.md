@@ -17,6 +17,13 @@ Built at NEAR HACKATHON (November 2026). Tracks: **NFTs That Do Something** (`nf
 | Inspector | [`nauval-lp-v-trust.testnet`](https://testnet.nearblocks.io/address/nauval-lp-v-trust.testnet) |
 | Customer | [`nauval-lp-kestrel-cloud.testnet`](https://testnet.nearblocks.io/address/nauval-lp-kestrel-cloud.testnet) |
 
+**Read a finished passport in the browser, no wallet needed.** Run `bash scripts/serve.sh`, then open:
+
+- [`localhost:5173/?lot=0001`](http://localhost:5173/?lot=0001) — inspection passed, supplier paid in full
+- [`localhost:5173/?lot=0002`](http://localhost:5173/?lot=0002) — inspection failed, buyer refunded in full
+
+Both pages are view calls only: the NFT card, status, the three companies, every payment and every holder, read straight off the chain with nothing to sign. The same paths work on the hosted copy (`https://<user>.github.io/<repo>/?lot=0001`).
+
 Read it without installing anything — this returns the USDC token the contract settles in:
 
 ```
@@ -28,6 +35,8 @@ curl -s -X POST https://rpc.testnet.fastnear.com -H 'Content-Type: application/j
 Every step below is a real testnet transaction against `nauval-lp-contract.testnet`. The two **Refused** rows failed on purpose — that is the contract rejecting a cheat, not a broken demo.
 
 ### Lot `0001` — inspection passes, supplier is paid
+
+Read it in the browser with no wallet: [`?lot=0001`](http://localhost:5173/?lot=0001)
 
 | Step | Signed by | Transaction | Result |
 |---|---|---|---|
@@ -45,6 +54,8 @@ Every step below is a real testnet transaction against `nauval-lp-contract.testn
 Net effect: buyer −15 USDC, supplier +15 USDC (13.5 on the stamp, 1.5 on release), contract holds nothing.
 
 ### Lot `0002` — inspection fails, buyer gets everything back
+
+Read it in the browser with no wallet: [`?lot=0002`](http://localhost:5173/?lot=0002)
 
 | Step | Signed by | Transaction | Result |
 |---|---|---|---|
