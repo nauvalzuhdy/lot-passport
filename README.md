@@ -166,3 +166,6 @@ scripts/    test-core.sh, testnet-demo.sh, serve.sh
 - **AI-generated code:** large parts of the contract, web app, relayer, tests and documentation were written with Claude (Anthropic) and reviewed, run and tested by the author.
 - **Other projects by the author in this hackathon:** none.
 - License: MIT ([LICENSE](LICENSE)).
+
+   **Live app:** https://nauvalzuhdy.github.io/lot-passport/ · **Offline demo:** https://nauvalzuhdy.github.io/lot-passport/demo.html · **Contract:** nauval-lp-contract.testnet
+
