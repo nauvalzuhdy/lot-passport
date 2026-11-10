@@ -1,0 +1,16 @@
+{
+  "name": "lot-passport-relayer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Pays gas for Lot Passport suppliers and inspectors (NEP-366 meta transactions) and proxies dry NEAR Intents quotes",
+  "scripts": {
+    "start": "node relayer.mjs",
+    "test": "node --test policy.test.mjs"
+  },
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "near-api-js": "5.1.1"
+  },
+  "license": "MIT"
+}

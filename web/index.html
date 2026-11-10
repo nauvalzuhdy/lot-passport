@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lot Passport</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./style.css">
+<script type="importmap">
+{ "imports": { "@hot-labs/near-connect": "https://esm.sh/@hot-labs/near-connect" } }
+</script>
+</head>
+<body>
+<header class="bar">
+  <div class="wrap barin">
+    <div class="brand">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="3"></rect><circle cx="12" cy="10" r="3"></circle><path d="M8 17h8"></path></svg>
+      LOT PASSPORT
+    </div>
+    <span class="net" id="net"></span>
+    <a class="demo" href="./demo.html">Open the offline demo</a>
+    <button type="button" id="walletBtn" class="primary">Connect wallet</button>
+  </div>
+</header>
+<main class="wrap" id="app" aria-live="polite"></main>
+<div class="toast" id="toast" role="status"></div>
+<script type="module" src="./app.js"></script>
+</body>
+</html>

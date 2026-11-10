@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lot Passport Demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* Layout: two panes. Left = the deal, one step at a time, acted by three roles. Right = the Lot Passport NFT, a dark document that fills in live. */
+:root{
+  --bg:#F2F4F8; --surface:#FFFFFF; --ink:#0E1726; --muted:#566176; --line:#DDE2EA;
+  --accent:#3346E8; --accent-soft:#E7EAFD;
+  --card:#0F1B3D; --card-2:#17265A; --card-ink:#EEF1FA; --card-muted:#A7B1CC; --gold:#E7B65C;
+  --pass:#2FB98A; --pass-soft:#DDF5EC; --fail:#E5534B; --fail-soft:#FCE4E2; --hold:#C8871F; --hold-soft:#FBF0DC;
+  --display:"Sora","Segoe UI",Arial,sans-serif; --body:"Manrope","Segoe UI",Arial,sans-serif; --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0A0F1C; --surface:#121A2C; --ink:#E8ECF5; --muted:#9AA5BD; --line:#26314A; --accent:#8C98FF; --accent-soft:#1D2550;
+  --pass-soft:#123628; --fail-soft:#3A1715; --hold-soft:#36280F; color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --bg:#0A0F1C; --surface:#121A2C; --ink:#E8ECF5; --muted:#9AA5BD; --line:#26314A; --accent:#8C98FF; --accent-soft:#1D2550;
+  --pass-soft:#123628; --fail-soft:#3A1715; --hold-soft:#36280F; color-scheme:dark;}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.55 var(--body)}
+.wrap{max-width:1240px;margin:0 auto;padding:26px 20px 56px;display:grid;gap:22px}
+h1,h2,h3{font-family:var(--display);margin:0;line-height:1.2;text-wrap:balance}
+p{margin:0}
+button{font:inherit;cursor:pointer;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:10px 16px;min-height:44px}
+button:hover{border-color:var(--accent)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700}
+button.primary:hover{filter:brightness(1.08)}
+button.ghost{background:var(--surface);color:var(--ink)}
+button:disabled{opacity:.45;cursor:not-allowed}
+.top{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:16px}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--display);font-weight:800;font-size:15px;letter-spacing:.3px;color:var(--accent)}
+.top h1{font-size:34px;font-weight:800;letter-spacing:-.8px;margin-top:6px}
+.top p{color:var(--muted);max-width:62ch;margin-top:6px}
+.scen{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.scen span{font-size:13px;color:var(--muted)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--surface)}
+.seg button{border:0;border-radius:0;min-height:40px;padding:8px 14px;font-size:14px}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg);font-weight:700}
+.main{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,520px);gap:22px;align-items:start}
+.pane{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:22px;display:grid;gap:18px}
+.steps{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px}
+.steps li{height:6px;border-radius:3px;background:var(--line)}
+.steps li.done{background:var(--pass)} .steps li.now{background:var(--accent)} .steps li.bad{background:var(--fail)}
+.stepname{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-top:-10px}
+.role{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;padding:5px 10px;border-radius:999px;width:fit-content}
+.role.buyer{background:var(--accent-soft);color:var(--accent)}
+.role.supplier{background:var(--hold-soft);color:var(--hold)}
+.role.inspector{background:var(--pass-soft);color:var(--pass)}
+.role.anyone{background:var(--line);color:var(--ink)}
+.pane h2{font-size:24px;font-weight:700;letter-spacing:-.3px}
+.lead{color:var(--muted)}
+.form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.field{border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:grid;gap:2px}
+.field small{font-size:12px;color:var(--muted);font-weight:600}
+.field b{font-weight:700}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chips button{min-height:40px;padding:6px 12px;font-size:14px}
+.chips button[aria-pressed="true"]{border:2px solid var(--accent);background:var(--accent-soft);color:var(--accent);font-weight:700}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.note{border-radius:14px;padding:14px 16px;background:var(--bg);border:1px dashed var(--line);font-size:14px;display:grid;gap:4px}
+.note b{font-family:var(--display);font-size:13px;letter-spacing:.4px;color:var(--muted);text-transform:uppercase}
+.banner{border-radius:14px;padding:12px 14px;font-size:14px;border:1px solid}
+.banner.ok{background:var(--pass-soft);border-color:var(--pass)}
+.banner.no{background:var(--fail-soft);border-color:var(--fail)}
+.banner.hold{background:var(--hold-soft);border-color:var(--hold)}
+.cartons{display:flex;flex-wrap:wrap;gap:8px}
+.cartons span{font-family:var(--mono);font-weight:500;min-width:52px;text-align:center;padding:8px 10px;border-radius:10px;background:var(--accent-soft);color:var(--accent)}
+.kv{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.kv div{border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.kv small{display:block;font-size:12px;color:var(--muted);font-weight:600}
+.kv b{font-family:var(--display);font-size:22px;font-variant-numeric:tabular-nums}
+.log{list-style:none;margin:0;padding:0;display:grid;gap:6px;font-size:13px}
+.log li{display:flex;gap:10px;align-items:baseline}
+.log code{font-family:var(--mono);font-size:12px;color:var(--muted)}
+
+.sups{display:grid;gap:10px}
+.sups{border:1px solid var(--line);border-radius:14px;overflow:hidden;gap:0}
+.supshead{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px;padding:10px 14px;background:var(--bg);font-size:13px}
+.supshead span{color:var(--muted)}
+.sup{border-top:1px solid var(--line)}
+.sup summary{list-style:none;display:flex;align-items:center;gap:12px;padding:12px 14px;cursor:pointer;min-height:44px}
+.sup summary::-webkit-details-marker{display:none}
+.sup summary:hover{background:var(--accent-soft)}
+.sup summary:focus-visible{outline:3px solid var(--accent);outline-offset:-3px}
+.sn{flex:1 1 auto;min-width:0;display:grid}
+.sn b{font-family:var(--display);font-size:14.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sn span{font-size:12.5px;color:var(--muted)}
+.chev{width:10px;height:10px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg);transition:transform .2s;margin:0 4px 4px}
+.sup[open] .chev{transform:rotate(-135deg);margin-bottom:-4px}
+.sbody{padding:0 14px 14px;display:grid;gap:10px}
+.sc{text-align:right}.sc b{font-family:var(--display);font-size:22px;font-variant-numeric:tabular-nums}.sc small{display:block;font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.sbar{height:6px;border-radius:3px;background:var(--line);overflow:hidden}.sbar i{display:block;height:100%;background:var(--pass)}
+.sfacts{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px;color:var(--muted)}
+/* wallet + modal + gallery */
+.wbtn{display:inline-flex;align-items:center;gap:8px;font-weight:700}
+.wbtn .dot{width:9px;height:9px;border-radius:50%;background:var(--muted)}
+.wbtn.on .dot{background:var(--pass)}
+.overlay{position:fixed;inset:0;background:rgba(8,12,24,.55);display:none;align-items:center;justify-content:center;padding:16px;z-index:50}
+.overlay.open{display:flex}
+.modal{width:min(520px,100%);max-height:calc(100% - 32px);overflow:auto;background:var(--surface);color:var(--ink);border-radius:20px;padding:22px;display:grid;gap:14px;box-shadow:0 30px 80px rgba(0,0,0,.35)}
+.mh{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.mh h3{font-size:20px}
+.mh button{min-height:40px;padding:6px 12px}
+.wlist{display:grid;gap:8px}
+.wlist button{display:flex;align-items:center;gap:12px;text-align:left;width:100%}
+.wlist .ic{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-family:var(--display)}
+.tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;background:var(--bg);padding:4px;border-radius:12px}
+.tabs button{border:0;min-height:40px}
+.tabs button[aria-pressed="true"]{background:var(--surface);box-shadow:0 1px 4px rgba(0,0,0,.12);font-weight:700}
+.sum{border:1px solid var(--line);border-radius:12px;padding:12px;display:grid;gap:6px;font-size:14px}
+.sum div{display:flex;justify-content:space-between;gap:10px}
+.sum .tot{font-weight:800;border-top:1px solid var(--line);padding-top:6px}
+.route{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:13px}
+.route span{padding:4px 9px;border-radius:999px;background:var(--bg);border:1px solid var(--line);font-weight:600}
+.txreq{border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.txreq .bar{background:var(--card);color:var(--card-ink);padding:10px 14px;font-family:var(--mono);font-size:12px;display:flex;justify-content:space-between}
+.txreq dl{margin:0;padding:12px 14px;display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:13px}
+.txreq dt{color:var(--muted)} .txreq dd{margin:0;font-family:var(--mono);font-size:12.5px;word-break:break-all}
+.prog{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.prog li{display:flex;gap:10px;align-items:center;font-size:14px;color:var(--muted)}
+.prog li i{width:20px;height:20px;border-radius:50%;border:2px solid var(--line);flex:0 0 auto}
+.prog li.done{color:var(--ink)} .prog li.done i{background:var(--pass);border-color:var(--pass)}
+.prog li.now i{border-color:var(--accent);border-top-color:transparent}
+@media (prefers-reduced-motion: no-preference){.prog li.now i{animation:spin .8s linear infinite}}
+@keyframes spin{to{transform:rotate(360deg)}}
+.receipt{border-radius:14px;padding:12px 14px;background:var(--pass-soft);border:1px solid var(--pass);font-size:13.5px;display:grid;gap:4px}
+.receipt code{font-family:var(--mono);font-size:12px;word-break:break-all}
+.gallery{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:22px;display:grid;gap:14px}
+.gallery .gh{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:8px}
+.gallery h2{font-size:22px}
+.ggrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+.scen .count,.count{color:#fff;font-size:12px;display:inline-flex;min-width:22px;height:22px;padding:0 6px;border-radius:11px;background:var(--accent);color:#fff;font-size:12px;align-items:center;justify-content:center}
+.modal.wide{width:min(980px,100%)}
+.ggrid2{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.nftc{border:1px solid var(--line);border-radius:16px;overflow:hidden;background:var(--bg);display:grid;cursor:pointer;text-align:left;padding:0;font:inherit;color:inherit}
+.nftc:hover{border-color:var(--accent)}
+.nftc .meta span{display:flex;align-items:center;gap:8px}
+.nftc .meta svg{width:28px;height:28px;flex:0 0 auto}
+.pdet{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:16px;align-items:start}
+.pdet img{width:100%;border-radius:16px;display:block}
+.pfacts{display:grid;gap:8px;font-size:14px}
+.pfacts div{display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid var(--line);padding-bottom:6px}
+.pfacts span{color:var(--muted)}
+@media (max-width:700px){.pdet{grid-template-columns:1fr}}
+.nftc img{width:100%;display:block}
+.nftc .meta{padding:10px 12px;display:flex;justify-content:space-between;gap:8px;font-size:13px}
+.nftc .meta b{font-family:var(--mono);font-weight:500}
+.nftc.cur{outline:3px solid var(--accent);outline-offset:-3px}
+/* passport */
+.book{position:sticky;top:16px;display:grid;gap:14px}
+.cover{background:radial-gradient(120% 80% at 20% 0%,#1B2E6B 0%,#0F1B3D 55%,#0A1430 100%);border-radius:22px;padding:14px;box-shadow:0 22px 60px rgba(10,20,48,.35),inset 0 0 0 1px rgba(231,182,92,.25)}
+.crest{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:4px 6px 12px;color:var(--gold)}
+.crest .t{font-family:var(--display);font-weight:800;letter-spacing:3px;font-size:13px}
+.crest .t small{display:block;font-family:var(--mono);font-weight:400;letter-spacing:2px;font-size:10px;opacity:.8}
+.crest .nft{font-family:var(--mono);font-size:10.5px;letter-spacing:1px;color:#C9D2EC;text-align:right}
+.page{position:relative;border-radius:14px;overflow:hidden;background:#EEF4F1;color:#13233F;padding:16px 16px 12px}
+.page canvas.g{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.page .micro{position:absolute;left:0;right:0;top:6px;font-family:var(--mono);font-size:6.5px;letter-spacing:1px;color:rgba(19,35,63,.28);white-space:nowrap;overflow:hidden}
+.page>*:not(canvas):not(.micro){position:relative}
+.head{display:flex;justify-content:space-between;align-items:flex-end;gap:8px;margin-top:6px;border-bottom:1px solid rgba(19,35,63,.18);padding-bottom:8px}
+.head .h1{font-family:var(--display);font-weight:800;font-size:15px;letter-spacing:2px}
+.head .h1 small{display:block;font-family:var(--body);font-weight:600;font-size:10px;letter-spacing:1px;color:#4A5A78}
+.chip{width:34px;height:22px;border:1.5px solid #13233F;border-radius:4px;position:relative;opacity:.7}
+.chip::after{content:"";position:absolute;inset:5px 11px;border:1.5px solid #13233F;border-radius:50%}
+.data{display:grid;grid-template-columns:118px minmax(0,1fr) 16px;gap:14px;margin-top:12px}
+.photo{border-radius:8px;background:linear-gradient(160deg,#DDE8EF,#C9D9E3);border:1px solid rgba(19,35,63,.2);aspect-ratio:3/4;display:flex;align-items:center;justify-content:center;position:relative}
+.photo .lbl{position:absolute;bottom:4px;left:0;right:0;text-align:center;font-family:var(--mono);font-size:8.5px;letter-spacing:1px;color:#4A5A78}
+.fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px 12px;align-content:start}
+.f small{display:block;font-size:8.5px;letter-spacing:.6px;text-transform:uppercase;color:#4A5A78;font-weight:600;line-height:1.25}
+.f b{display:block;font-family:var(--mono);font-weight:500;font-size:12.5px;text-transform:uppercase;letter-spacing:.3px;word-break:break-word;line-height:1.3}
+.f.wide{grid-column:1/-1}
+.holo{border-radius:6px;background:conic-gradient(from 0deg,#9be7d8,#c7b6ff,#ffd6a0,#9fd4ff,#9be7d8);opacity:.55;position:relative;overflow:hidden}
+.holo::after{content:"";position:absolute;inset:-40% 0;background:linear-gradient(180deg,transparent,rgba(255,255,255,.85),transparent);height:40%}
+@media (prefers-reduced-motion: no-preference){.holo::after{animation:sheen 3.2s linear infinite}}
+@keyframes sheen{from{transform:translateY(-60%)}to{transform:translateY(320%)}}
+.book .page>.ghost{position:absolute;right:64px;top:44px;opacity:.12}
+.pcol{display:grid;gap:14px;justify-items:center;align-content:start}
+.pcol .photo{width:100%}
+.seal{width:100px;height:100px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;background:radial-gradient(circle at 35% 30%,#F6D88E,#D9A441 60%,#B9832A);color:#3B2606;box-shadow:0 2px 0 rgba(0,0,0,.15),inset 0 0 0 3px rgba(255,255,255,.35),inset 0 0 0 6px rgba(59,38,6,.25)}
+.seal small{font-family:var(--mono);font-size:7.5px;letter-spacing:1.2px}
+.seal b{font-family:var(--display);font-size:15px;font-weight:800;font-variant-numeric:tabular-nums}
+.mrz{margin-top:12px;background:rgba(255,255,255,.55);border-radius:6px;padding:8px 10px;font-family:var(--mono);font-size:9.4px;letter-spacing:.55px;line-height:1.45;color:#13233F;white-space:pre;overflow:hidden}
+.vault2{margin-top:10px;display:grid;gap:6px}
+.vbar{display:flex;height:8px;border-radius:4px;overflow:hidden;background:rgba(19,35,63,.12)}
+.vbar i{display:block;height:100%;transition:width .6s ease}
+.vleg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;font-size:10.5px;color:#4A5A78;font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+.vleg b{display:block;color:#13233F;font-family:var(--mono);font-weight:500;font-size:12px;text-transform:none;letter-spacing:0}
+.vleg span::before{content:"";display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;background:var(--c)}
+.stamps{min-height:250px}
+.stamps .h1{font-family:var(--display);font-weight:800;font-size:13px;letter-spacing:2px}
+.stamps .h1 small{font-family:var(--body);font-weight:600;font-size:10px;letter-spacing:1px;color:#4A5A78;margin-left:8px}
+.sgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:10px;min-height:180px}
+.stamp2{justify-self:center;align-self:center;filter:url(#ink);text-align:center;font-family:var(--display);font-weight:800;text-transform:uppercase;letter-spacing:1.2px;padding:8px 10px;border:2.5px solid currentColor;line-height:1.15;max-width:100%}
+.stamp2 small{display:block;font-family:var(--mono);font-weight:500;font-size:9px;letter-spacing:.8px;margin-top:3px}
+.stamp2 .big{font-size:16px}
+.stamp2.round{border-radius:50%;width:112px;height:112px;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:inset 0 0 0 4px transparent,inset 0 0 0 5px currentColor}
+.stamp2.rect{border-radius:6px}
+.stamp2.oval{border-radius:999px;padding:10px 14px}
+@media (prefers-reduced-motion: no-preference){.stamp2.new{animation:press .4s cubic-bezier(.2,1.5,.4,1)}}
+@keyframes press{from{transform:scale(1.9) rotate(var(--r));opacity:0}to{transform:scale(1) rotate(var(--r));opacity:.9}}
+.stamp2{transform:rotate(var(--r));opacity:.9}
+.sempty{grid-column:1/-1;align-self:center;text-align:center;color:#6A7891;font-size:12px}
+.inspect{margin-top:4px;border-top:1px dashed rgba(19,35,63,.25);padding-top:10px;display:grid;gap:6px}
+.inspect .it{display:flex;justify-content:space-between;font-size:10.5px;letter-spacing:.6px;text-transform:uppercase;color:#4A5A78;font-weight:600}
+.dots{display:grid;grid-template-columns:repeat(40,1fr);gap:2px}
+.dots i{aspect-ratio:1;border-radius:1px;background:rgba(19,35,63,.12)}
+.dots i.ok{background:#3FA984} .dots i.bad{background:#D9443C}
+.signer{font-family:var(--mono);font-size:10.5px;color:#4A5A78}
+.empty{color:#6A7891;font-size:12px}
+.pnum{display:flex;justify-content:space-between;font-family:var(--mono);font-size:9px;color:#6A7891;margin-top:8px}
+@media (max-width:980px){.main{grid-template-columns:1fr}.book{position:static}}
+@media (max-width:520px){.form,.kv{grid-template-columns:1fr}.top h1{font-size:28px}.data{grid-template-columns:90px minmax(0,1fr) 12px}.fields{grid-template-columns:1fr}.seal{display:none}.sgrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div>
+      <div class="brand"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="3"></rect><circle cx="12" cy="10" r="3"></circle><path d="M8 17h8"></path></svg>LOT PASSPORT · demo</div>
+      <h1>Every batch of goods gets a passport that holds its own money.</h1>
+      <p>The buyer's payment sits inside the passport. An independent inspector stamps it at the factory. Pass: the supplier is paid. Fail: the money goes back. Afterwards, the passport proves the lot's quality to anyone.</p>
+    </div>
+    <div class="scen"><span>Supplier quality in this demo:</span>
+      <div class="seg" role="group" aria-label="Supplier quality">
+        <button type="button" id="qGood" aria-pressed="true">Good factory</button>
+        <button type="button" id="qBad" aria-pressed="false">Bad batch</button>
+      </div>
+      <button type="button" class="ghost" id="restart">Restart</button>
+      <button type="button" class="wbtn" id="passBtn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="8" height="7" rx="1.5"></rect><rect x="13" y="4" width="8" height="7" rx="1.5"></rect><rect x="3" y="13" width="8" height="7" rx="1.5"></rect><rect x="13" y="13" width="8" height="7" rx="1.5"></rect></svg>My passports <span class="count" id="passCount">0</span></button>
+      <button type="button" class="wbtn" id="walletBtn"><span class="dot" aria-hidden="true"></span><span id="walletTxt">Connect wallet</span></button>
+    </div>
+  </div>
+
+  <div class="main">
+    <section class="pane" aria-live="polite">
+      <ol class="steps" id="steps"><li></li><li></li><li></li><li></li><li></li><li></li></ol>
+      <div class="stepname"><span>Find</span><span>Create</span><span>Produce</span><span>Inspect</span><span>Settle</span><span>Prove</span></div>
+      <div id="stage"></div>
+      <div class="note" id="explain"></div>
+    </section>
+
+    <aside class="book" aria-label="Lot Passport">
+      <svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="ink"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="3" result="n"></feTurbulence><feDisplacementMap in="SourceGraphic" in2="n" scale="2.2"></feDisplacementMap></filter></svg>
+      <div class="cover">
+        <div class="crest">
+          <svg width="30" height="30" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="16" cy="16" r="13"></circle><circle cx="16" cy="16" r="9"></circle><path d="M16 4v24M4 16h24M7.5 7.5l17 17M24.5 7.5l-17 17" opacity=".55"></path><path d="M12.5 13.5h7l1.8 3.1-1.8 3.1h-7l-1.8-3.1z" fill="#0F1B3D"></path></svg>
+          <div class="t">LOT PASSPORT<small>NEP-171 · NEAR TESTNET</small></div>
+          <div class="nft">TOKEN <span id="tokTop">#—</span><br>lot-passport.testnet</div>
+        </div>
+        <div class="page" id="dataPage">
+          <canvas class="g" id="g1" aria-hidden="true"></canvas>
+          <div class="micro" aria-hidden="true" id="micro1"></div>
+          <div class="head">
+            <div class="h1">PASSPORT OF A LOT<small>Cross-border trade record · issued on chain</small></div>
+            <div class="chip" aria-hidden="true"></div>
+          </div>
+          <div class="data">
+            <div class="pcol">
+            <div class="photo" id="pPhoto" aria-label="Product image">
+              <svg width="96" height="96" viewBox="0 0 96 96" aria-hidden="true"><g fill="none" stroke="#13233F" stroke-width="2" stroke-linejoin="round"><path d="M14 34l52-14 18 10-52 14z" fill="#CFDCE5"></path><path d="M14 34v22l18 10V44z" fill="#B9CAD6"></path><path d="M32 44l52-14v22L32 66z" fill="#DDE8EF"></path><path d="M40 39l40-11M44 42l38-10M48 45l35-9" opacity=".55"></path><rect x="17" y="44" width="5" height="7" rx="1" fill="#13233F"></rect><rect x="24" y="48" width="5" height="7" rx="1" fill="#13233F"></rect><path d="M14 56c-8 4-8 14 2 16l14-4" stroke-width="2.4"></path></g></svg>
+              <span class="lbl" id="pLbl">—</span>
+            </div>
+            <div class="seal" aria-label="Money held inside"><small>HOLDS</small><b id="vIn">$0</b><small>INSIDE</small></div>
+            </div>
+            <div class="fields">
+              <div class="f"><small>Type</small><b>LOT · AI HARDWARE</b></div>
+              <div class="f"><small>Passport no.</small><b id="fNo">LP-—</b></div>
+              <div class="f wide"><small>Goods</small><b id="pGoods">—</b></div>
+              <div class="f"><small>Quantity</small><b id="pQty">—</b></div>
+              <div class="f"><small>HS code · Incoterm</small><b id="pHs">—</b></div>
+              <div class="f wide"><small>Supplier</small><b id="pSup">Not chosen yet</b></div>
+              <div class="f wide"><small>Buyer</small><b>Nordlicht Rechenzentren GmbH · Frankfurt · DE</b></div>
+              <div class="f"><small>Route</small><b id="pRoute">CN → DE</b></div>
+              <div class="f"><small>Inspector</small><b>V-Trust Inspection</b></div>
+              <div class="f"><small>Standard</small><b>ISO 2859-1 · AQL 2.5</b></div>
+              <div class="f"><small>Pass rule</small><b id="pRule">—</b></div>
+              <div class="f"><small>Date of issue</small><b id="fDate">—</b></div>
+              <div class="f"><small>Holder</small><b id="pOwner">—</b></div>
+            </div>
+            <div class="holo" aria-hidden="true"></div>
+          </div>
+          <svg class="ghost" id="pGhost" width="56" height="56" viewBox="0 0 96 96" aria-hidden="true"><g fill="none" stroke="#13233F" stroke-width="3"><path d="M14 34l52-14 18 10-52 14z"></path><path d="M14 34v22l18 10V44zM32 44l52-14v22L32 66z"></path></g></svg>
+          <div class="vault2">
+            <div class="vbar" aria-hidden="true"><i id="bIn" style="background:#D9A441;width:0"></i><i id="bPaid" style="background:#3FA984;width:0"></i><i id="bBack" style="background:#D9443C;width:0"></i></div>
+            <div class="vleg">
+              <span style="--c:#D9A441">Locked<b id="lIn">$0.00</b></span>
+              <span style="--c:#3FA984">Paid supplier<b id="lPaid">$0.00</b></span>
+              <span style="--c:#D9443C">Returned buyer<b id="lBack">$0.00</b></span>
+            </div>
+          </div>
+          <div class="mrz" id="mrz" aria-label="Machine readable zone"></div>
+          <div class="pnum"><span id="pSub">Not minted yet</span><span>2</span></div>
+        </div>
+      </div>
+      <div class="cover">
+        <div class="page stamps">
+          <canvas class="g" id="g2" aria-hidden="true"></canvas>
+          <div class="micro" aria-hidden="true" id="micro2"></div>
+          <div class="h1" style="margin-top:6px">STAMPS<small>Each one is an on-chain record</small></div>
+          <div class="sgrid" id="stamps"></div>
+          <div class="inspect">
+            <div class="it"><span>Inspection record</span><span id="iCount"></span></div>
+            <div id="iBody" class="empty">No inspection yet. Only v-trust.testnet can write here.</div>
+          </div>
+          <div class="pnum"><span>Proofs: tap a stamp code in the explorer</span><span>3</span></div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+
+</div>
+
+<div class="overlay" id="overlay" role="dialog" aria-modal="true" aria-labelledby="mTitle"><div class="modal" id="modal"></div></div>
+
+<script>
+const RET=0.10;
+const ICON={
+  optic:'<svg width="96" height="96" viewBox="0 0 96 96" aria-hidden="true"><g fill="none" stroke="#13233F" stroke-width="2" stroke-linejoin="round"><path d="M14 34l52-14 18 10-52 14z" fill="#CFDCE5"></path><path d="M14 34v22l18 10V44z" fill="#B9CAD6"></path><path d="M32 44l52-14v22L32 66z" fill="#DDE8EF"></path><path d="M40 39l40-11M44 42l38-10M48 45l35-9" opacity=".55"></path><rect x="17" y="44" width="5" height="7" rx="1" fill="#13233F"></rect><rect x="24" y="48" width="5" height="7" rx="1" fill="#13233F"></rect><path d="M14 56c-8 4-8 14 2 16l14-4" stroke-width="2.4"></path></g></svg>',
+  board:'<svg width="96" height="96" viewBox="0 0 96 96" aria-hidden="true"><g fill="none" stroke="#13233F" stroke-width="2" stroke-linejoin="round"><rect x="10" y="30" width="76" height="34" rx="3" fill="#CFDCE5"></rect><rect x="18" y="36" width="12" height="16" rx="1" fill="#B9CAD6"></rect><rect x="34" y="36" width="12" height="16" rx="1" fill="#B9CAD6"></rect><rect x="50" y="36" width="12" height="16" rx="1" fill="#B9CAD6"></rect><rect x="66" y="36" width="12" height="16" rx="1" fill="#B9CAD6"></rect><path d="M14 64v6M22 64v6M30 64v6M38 64v6M46 64v6M54 64v6M62 64v6M70 64v6M78 64v6"></path></g></svg>',
+  psu:'<svg width="96" height="96" viewBox="0 0 96 96" aria-hidden="true"><g fill="none" stroke="#13233F" stroke-width="2" stroke-linejoin="round"><rect x="10" y="26" width="76" height="44" rx="4" fill="#CFDCE5"></rect><circle cx="34" cy="48" r="15" fill="#DDE8EF"></circle><circle cx="34" cy="48" r="3" fill="#13233F"></circle><path d="M34 33v30M19 48h30M23.4 37.4l21.2 21.2M44.6 37.4L23.4 58.6" opacity=".55"></path><rect x="58" y="38" width="18" height="12" rx="2" fill="#B9CAD6"></rect><path d="M62 42v4M67 42v4M72 42v4"></path><path d="M58 58h18" opacity=".6"></path></g></svg>',
+  battery:'<svg width="96" height="96" viewBox="0 0 96 96" aria-hidden="true"><g fill="none" stroke="#13233F" stroke-width="2" stroke-linejoin="round"><rect x="14" y="30" width="62" height="36" rx="5" fill="#CFDCE5"></rect><rect x="76" y="41" width="7" height="14" rx="2" fill="#B9CAD6"></rect><rect x="20" y="36" width="11" height="24" rx="2" fill="#7FC9A8"></rect><rect x="34" y="36" width="11" height="24" rx="2" fill="#7FC9A8"></rect><rect x="48" y="36" width="11" height="24" rx="2" fill="#7FC9A8"></rect><rect x="62" y="36" width="9" height="24" rx="2" fill="#DDE8EF"></rect><path d="M44 18l-6 9h7l-5 9" stroke-width="2.4"></path></g></svg>',
+  plate:'<svg width="96" height="96" viewBox="0 0 96 96" aria-hidden="true"><g fill="none" stroke="#13233F" stroke-width="2" stroke-linejoin="round"><rect x="16" y="24" width="64" height="48" rx="4" fill="#CFDCE5"></rect><path d="M26 36h44M26 44h44M26 52h44M26 60h44" opacity=".55"></path><circle cx="24" cy="18" r="5" fill="#B9CAD6"></circle><circle cx="72" cy="18" r="5" fill="#B9CAD6"></circle><path d="M24 23v4M72 23v4"></path></g></svg>'
+};
+Object.assign(ICON,{
+  cable:'<svg width="96" height="96" viewBox="0 0 96 96" aria-hidden="true"><g fill="none" stroke="#13233F" stroke-width="2" stroke-linejoin="round"><ellipse cx="48" cy="50" rx="26" ry="18" stroke-width="5" stroke="#B9CAD6"></ellipse><ellipse cx="48" cy="50" rx="26" ry="18"></ellipse><ellipse cx="48" cy="50" rx="18" ry="11"></ellipse><rect x="10" y="20" width="18" height="12" rx="2" fill="#CFDCE5"></rect><rect x="68" y="66" width="18" height="12" rx="2" fill="#CFDCE5"></rect><path d="M28 26c8 0 10 8 12 12M68 72c-8 0-10-8-12-12"></path></g></svg>',
+  pdu:'<svg width="96" height="96" viewBox="0 0 96 96" aria-hidden="true"><g fill="none" stroke="#13233F" stroke-width="2" stroke-linejoin="round"><rect x="34" y="8" width="28" height="80" rx="4" fill="#CFDCE5"></rect><rect x="40" y="14" width="16" height="8" rx="1" fill="#7FC9A8"></rect><g fill="#DDE8EF"><rect x="40" y="28" width="16" height="10" rx="2"></rect><rect x="40" y="42" width="16" height="10" rx="2"></rect><rect x="40" y="56" width="16" height="10" rx="2"></rect><rect x="40" y="70" width="16" height="10" rx="2"></rect></g><path d="M45 31v4M51 31v4M45 45v4M51 45v4M45 59v4M51 59v4M45 73v4M51 73v4"></path></g></svg>',
+  fan:'<svg width="96" height="96" viewBox="0 0 96 96" aria-hidden="true"><g fill="none" stroke="#13233F" stroke-width="2" stroke-linejoin="round"><rect x="14" y="14" width="68" height="68" rx="8" fill="#CFDCE5"></rect><circle cx="48" cy="48" r="28" fill="#DDE8EF"></circle><circle cx="48" cy="48" r="7" fill="#B9CAD6"></circle><path d="M48 41c-2-10 4-16 12-14-2 8-6 12-12 14zM55 48c10-2 16 4 14 12-8-2-12-6-14-12zM48 55c2 10-4 16-12 14 2-8 6-12 12-14zM41 48c-10 2-16-4-14-12 8 2 12 6 14 12z" fill="#B9CAD6"></path><circle cx="21" cy="21" r="2.5"></circle><circle cx="75" cy="21" r="2.5"></circle><circle cx="21" cy="75" r="2.5"></circle><circle cx="75" cy="75" r="2.5"></circle></g></svg>',
+  ssd:'<svg width="96" height="96" viewBox="0 0 96 96" aria-hidden="true"><g fill="none" stroke="#13233F" stroke-width="2" stroke-linejoin="round"><rect x="20" y="12" width="56" height="72" rx="5" fill="#CFDCE5"></rect><rect x="28" y="22" width="40" height="24" rx="2" fill="#DDE8EF"></rect><path d="M34 30h28M34 36h20" opacity=".6"></path><rect x="28" y="54" width="18" height="18" rx="2" fill="#B9CAD6"></rect><rect x="50" y="54" width="18" height="8" rx="1" fill="#B9CAD6"></rect><path d="M30 84v4M36 84v4M42 84v4M48 84v4M54 84v4M60 84v4M66 84v4"></path></g></svg>',
+  pump:'<svg width="96" height="96" viewBox="0 0 96 96" aria-hidden="true"><g fill="none" stroke="#13233F" stroke-width="2" stroke-linejoin="round"><rect x="22" y="10" width="52" height="76" rx="4" fill="#CFDCE5"></rect><rect x="30" y="18" width="36" height="14" rx="2" fill="#DDE8EF"></rect><path d="M34 25h12" stroke="#7FC9A8" stroke-width="3"></path><circle cx="48" cy="56" r="14" fill="#DDE8EF"></circle><path d="M48 46v20M38 56h20" opacity=".6"></path><path d="M74 42h10v6H74M74 66h10v6H74" fill="#B9CAD6"></path><path d="M12 42h10M12 72h10" stroke-width="3" stroke="#8FB9DE"></path></g></svg>'
+});
+const PRODUCTS=[
+  {id:"osfp",name:"800G OSFP optical transceivers",short:"800G · OSFP",hs:"851762",unit:640,perCarton:20,qty:2400,units:"modules",icon:"optic",tests:"optical output power, bit error rate at 800G and a clean fiber end-face"},
+  {id:"psu",name:"3.2 kW GPU server power supplies",short:"3.2 KW · PSU",hs:"850440",unit:410,perCarton:4,qty:1200,units:"units",icon:"psu",tests:"output under full load, ripple, fan and connector checks"},
+  {id:"cold",name:"Liquid cooling cold plates",short:"COLD PLATE",hs:"841950",unit:185,perCarton:10,qty:3000,units:"plates",icon:"plate",tests:"pressure test, flow rate and flatness of the contact surface"},
+  {id:"ram",name:"DDR5 RDIMM 64 GB memory modules",short:"DDR5 · 64 GB",hs:"847330",unit:260,perCarton:25,qty:5000,units:"modules",icon:"board",tests:"memory stress test, SPD read and contact inspection"},
+  {id:"bbu",name:"Lithium battery backup units",short:"BBU · LI-ION",hs:"850760",unit:1150,perCarton:2,qty:600,units:"units",icon:"battery",tests:"capacity, internal resistance and case and terminal checks"},
+  {id:"aec",name:"400G active electrical cables",short:"400G · AEC",hs:"854442",unit:95,perCarton:50,qty:8000,units:"cables",icon:"cable",tests:"signal integrity at 400G, connector retention and jacket inspection"},
+  {id:"pdu",name:"Intelligent rack power distribution units",short:"RACK · PDU",hs:"853710",unit:780,perCarton:2,qty:400,units:"units",icon:"pdu",tests:"insulation test, outlet metering accuracy and earth continuity"},
+  {id:"fan",name:"80 mm high-speed server fans",short:"80 MM · FAN",hs:"841459",unit:18,perCarton:100,qty:20000,units:"fans",icon:"fan",tests:"airflow, speed at rated voltage, noise and bearing play"},
+  {id:"ssd",name:"7.68 TB NVMe data-center SSDs",short:"NVME · 7.68 TB",hs:"847170",unit:520,perCarton:20,qty:3000,units:"drives",icon:"ssd",tests:"read and write benchmark, SMART health and firmware version"},
+  {id:"cdu",name:"Coolant distribution units",short:"LIQUID · CDU",hs:"841370",unit:14500,perCarton:1,qty:40,units:"units",icon:"pump",tests:"pressure and leak test, pump flow and controller check"}
+];
+// Simulated passport history per supplier (what find_suppliers returns on chain).
+const SUPPLIERS=[
+  {name:"Shenzhen Lightwave Optics Co., Ltd.",acc:"lightwave-optics.testnet",city:"Shenzhen",port:"Yantian",hs4:"8517",passed:11,rejected:0,ppm:9000,units:31200},
+  {name:"Suzhou Hanguang Photonics Co., Ltd.",acc:"hanguang.testnet",city:"Suzhou",port:"Shanghai",hs4:"8517",passed:3,rejected:1,ppm:31000,units:7200},
+  {name:"Wuhan Optical Valley Interconnect Co.",acc:"ov-interconnect.testnet",city:"Wuhan",port:"Shanghai",hs4:"8517",passed:0,rejected:0,ppm:null,units:0},
+  {name:"Shenzhen Gaoneng Power Systems Co., Ltd.",acc:"gaoneng-power.testnet",city:"Shenzhen",port:"Yantian",hs4:"8504",passed:9,rejected:0,ppm:12000,units:10800},
+  {name:"Dongguan Voltline Power Co., Ltd.",acc:"voltline.testnet",city:"Dongguan",port:"Shenzhen",hs4:"8504",passed:6,rejected:2,ppm:41000,units:6400},
+  {name:"Ningbo Coldstream Thermal Tech Co., Ltd.",acc:"coldstream.testnet",city:"Ningbo",port:"Ningbo",hs4:"8419",passed:7,rejected:1,ppm:22000,units:19000},
+  {name:"Kunshan Frostline Cooling Co., Ltd.",acc:"frostline.testnet",city:"Kunshan",port:"Shanghai",hs4:"8419",passed:2,rejected:0,ppm:8000,units:4000},
+  {name:"Hefei Xinchip Memory Co., Ltd.",acc:"xinchip.testnet",city:"Hefei",port:"Shanghai",hs4:"8473",passed:14,rejected:1,ppm:11000,units:62000},
+  {name:"Shenzhen Everpower Energy Storage Co., Ltd.",acc:"everpower.testnet",city:"Shenzhen",port:"Yantian",hs4:"8507",passed:5,rejected:0,ppm:14000,units:2600},
+  {name:"Xiamen Bluecell Battery Co., Ltd.",acc:"bluecell.testnet",city:"Xiamen",port:"Xiamen",hs4:"8507",passed:1,rejected:1,ppm:52000,units:500},
+  {name:"Dongguan Highlink Cable Technology Co., Ltd.",acc:"highlink.testnet",city:"Dongguan",port:"Shenzhen",hs4:"8544",passed:8,rejected:1,ppm:15000,units:64000},
+  {name:"Kunshan Signalway Interconnect Co., Ltd.",acc:"signalway.testnet",city:"Kunshan",port:"Shanghai",hs4:"8544",passed:2,rejected:0,ppm:9000,units:12000},
+  {name:"Hangzhou Gridline Electric Co., Ltd.",acc:"gridline.testnet",city:"Hangzhou",port:"Ningbo",hs4:"8537",passed:6,rejected:0,ppm:7000,units:2100},
+  {name:"Wenzhou Powerdock Electrical Co., Ltd.",acc:"powerdock.testnet",city:"Wenzhou",port:"Ningbo",hs4:"8537",passed:3,rejected:2,ppm:46000,units:900},
+  {name:"Taizhou Aerowind Fans Co., Ltd.",acc:"aerowind.testnet",city:"Taizhou",port:"Ningbo",hs4:"8414",passed:12,rejected:1,ppm:13000,units:210000},
+  {name:"Foshan Breeze Motor Co., Ltd.",acc:"breezemotor.testnet",city:"Foshan",port:"Shenzhen",hs4:"8414",passed:0,rejected:0,ppm:null,units:0},
+  {name:"Shenzhen Corestor Storage Co., Ltd.",acc:"corestor.testnet",city:"Shenzhen",port:"Yantian",hs4:"8471",passed:7,rejected:0,ppm:6000,units:18000},
+  {name:"Wuxi Flashrock Semiconductor Co., Ltd.",acc:"flashrock.testnet",city:"Wuxi",port:"Shanghai",hs4:"8471",passed:4,rejected:1,ppm:19000,units:9000},
+  {name:"Changzhou Coolflow Systems Co., Ltd.",acc:"coolflow.testnet",city:"Changzhou",port:"Shanghai",hs4:"8413",passed:5,rejected:0,ppm:0,units:160},
+  {name:"Guangzhou Hydrotherm Equipment Co., Ltd.",acc:"hydrotherm.testnet",city:"Guangzhou",port:"Nansha",hs4:"8413",passed:1,rejected:1,ppm:62000,units:30}
+];
+let P=PRODUCTS[0], SUP=null, QTY=P.qty, T=0, LOT=0, N=0, AC=0, CARTONS=0;
+// ISO 2859-1, level II, single sampling, normal, AQL 2.5 (same table as the contract's aql_plan).
+function aqlPlan(lot){
+  const CODE=[[8,2],[15,3],[25,5],[50,8],[90,13],[150,20],[280,32],[500,50],[1200,80],[3200,125],[10000,200],[35000,315],[150000,500],[500000,800],[Infinity,1250]];
+  const PLAN={5:0,13:1,20:1,32:2,50:3,80:5,125:7,200:10,315:14,500:21};
+  const n=CODE.find(c=>lot<=c[0])[1];const e=n<=8?5:(n>=800?500:n);return {n:Math.min(e,lot),ac:PLAN[e]};
+}
+const score=s=>(s.passed+1)/(s.passed+s.rejected+2);
+function setDeal(){LOT=QTY;const p=aqlPlan(QTY);N=p.n;AC=p.ac;CARTONS=Math.ceil(QTY/P.perCarton);T=QTY*P.unit;}
+setDeal();
+const CHAINS=[["tron","USDT on TRON"],["base","USDC on Base"],["near","USDC on NEAR"]];
+let S;
+function reset(){
+  const bad = S ? S.bad : false; const wallet = S ? S.wallet : null;
+  S={step:0,chosen:!!(S&&S.keepChoice&&SUP),bad,chain:"tron",lot:null,locked:0,paid:0,back:0,cartons:null,dots:null,defects:null,result:null,hist:[],stamps:[],day:9,wallet,owner:"—",blocked:false,claimDone:false,transferred:false};
+  render();
+}
+const $=id=>document.getElementById(id);
+const money=n=>"$"+n.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+const fmt=n=>n.toLocaleString("en-US");
+let tx=0;function hash(){tx++;let h="";for(let i=0;i<6;i++)h+="0123456789abcdef"[Math.floor(Math.random()*16)];return h+"…"+tx;}
+function H(text){S.hist.push({text,h:hash()});}
+function ST(kind,title,sub){S.stamps.push({kind,title,sub,h:hash(),date:"NOV "+String(S.day).padStart(2,"0")+" 2026",r:(Math.random()*16-8).toFixed(1),fresh:true});}
+function drawCartons(){const set=new Set();while(set.size<6)set.add(1+Math.floor(Math.random()*CARTONS));return [...set].sort((a,b)=>a-b);}
+
+function act(a){
+  if(a==="mint"){
+    S.lot=String(40+Math.floor(Math.random()*50)).padStart(4,"0");S.locked=T;S.owner="nordlicht-rz.testnet";
+    const c=CHAINS.find(x=>x[0]===S.chain)[1];
+    H(`Minted`);ST("mint","Issued","LP-"+S.lot);ST("lock","Locked",money(T));S.step=1;
+  }
+  if(a==="ready"){S.day+=3;H("ready");ST("ready","Ready","at factory");S.step=2;}
+  if(a==="draw"){S.cartons=drawCartons();H(`Random cartons drawn: ${S.cartons.join(", ")}`);}
+  if(a==="inspect"){
+    const rate=S.bad?0.11:Math.max(0.004,Math.min(0.03,(SUP&&SUP.ppm?SUP.ppm:20000)/1e6*0.8));
+    S.dots=Array.from({length:N},()=>Math.random()<rate);
+    if(!S.bad){let d=S.dots.filter(Boolean).length;if(d>AC){S.dots=S.dots.map((x,i)=>i%Math.max(9,Math.floor(N/Math.max(1,AC-2)))===5);} }
+    if(S.bad){let d=S.dots.filter(Boolean).length;if(d<=AC){for(let i=3;i<N&&S.dots.filter(Boolean).length<=AC+3;i+=Math.max(2,Math.floor(N/(AC+6))))S.dots[i]=true;}}
+    S.defects=S.dots.filter(Boolean).length;
+  }
+  if(a==="forge"){S.blocked=true;}
+  if(a==="sign"){
+    S.blocked=false;S.result=S.defects<=AC?"pass":"fail";
+    H(`Inspection signed by v-trust.testnet: ${S.defects} problems in ${N}`);
+    if(S.result==="pass"){const amt=+(T*(1-RET)).toFixed(2);S.locked=+(T-amt).toFixed(2);S.paid=amt;ST("pass","Passed",S.defects+" / "+N);ST("paid","Paid 90%",money(amt));}
+    else{S.back=T;S.locked=0;ST("fail","Rejected",S.defects+" / "+N);ST("refund","Refunded",money(T));}
+    S.step=3;
+  }
+  if(a==="confirm"){S.day+=4;S.paid=T;S.locked=0;S.claimDone=true;ST("paid","Released","final 10%");S.step=4;}
+  if(a==="transfer"){S.day+=2;S.transferred=true;S.owner="kestrel-cloud.testnet";ST("xfer","Endorsed to","kestrel-cloud");}
+  render();
+}
+
+function findView(){
+  const hs4=P.hs.slice(0,4);
+  const list=SUPPLIERS.filter(x=>x.hs4===hs4).sort((a,b)=>score(b)-score(a)||b.passed-a.passed);
+  return `<span class="role buyer">Buyer · Jonas, Nordlicht Rechenzentren GmbH (Frankfurt, DE)</span>
+    <h2>Find a supplier you can trust</h2>
+    <p class="lead">Pick what you need. Suppliers in China are ranked by what their past Lot Passports prove: lots passed and failed at independent inspections. Nobody can buy or fake this ranking.</p>
+    <div class="form">
+      <label class="field" for="prodSel"><small>Product</small><select id="prodSel" style="font:inherit;border:0;background:transparent;color:inherit;padding:0;min-height:30px">${PRODUCTS.map(x=>`<option value="${x.id}" ${x.id===P.id?"selected":""}>${x.name}</option>`).join("")}</select></label>
+      <label class="field" for="qtyIn"><small>Quantity (${P.units})</small><input id="qtyIn" type="number" min="2" max="500000" value="${QTY}" style="font:inherit;font-weight:700;border:0;background:transparent;color:inherit;padding:0;min-height:30px;width:100%"></label>
+      <div class="field"><small>HS code · unit price</small><b>${P.hs.slice(0,4)}.${P.hs.slice(4)} · $${fmt(P.unit)}</b></div>
+      <div class="field"><small>Inspection plan for this quantity</small><b>Test ${N} of ${fmt(QTY)}, ≤ ${AC} may fail</b></div>
+    </div>
+    <div class="sups"><div class="supshead"><b>${list.length} suppliers in China for HS ${hs4}</b><span>Tap a supplier to see its record</span></div>${list.map((x,i)=>{const insp=x.passed+x.rejected;const sc=Math.round(score(x)*100);
+      return `<details class="sup" ${i===0?"open":""}><summary><span class="sn"><b>${x.name}</b><span>${x.city} · ${insp?`${x.passed} passed, ${x.rejected} failed`:"no passports yet"}</span></span><span class="sc"><b>${sc}</b><small>score</small></span><span class="chev" aria-hidden="true"></span></summary>
+      <div class="sbody"><div class="sbar" aria-hidden="true"><i style="width:${sc}%"></i></div>
+      <div class="sfacts"><span>Ships FOB ${x.port}</span><span>${x.ppm!=null&&insp?`${(x.ppm/10000).toFixed(1)}% defects in samples`:"No inspection data"}</span><span>${x.units?fmt(x.units)+" units shipped":"No shipments yet"}</span></div>
+      <div class="row"><button type="button" class="primary" data-sup="${x.acc}">Choose this supplier</button></div></div></details>`;}).join("")}</div>
+    <p class="lead" style="font-size:13px">Score = (passed + 1) ÷ (inspected + 2): a newcomer starts at 50, one lucky lot can't jump to the top. Same rule as the contract's <code>find_suppliers</code>.</p>`;
+}
+function stage(){
+  if(!S.chosen) return findView();
+  const s=S.step, sup=SUP.name, short=sup.split(" ").slice(0,2).join(" ");
+  if(s===0) return `<span class="role buyer">Buyer · Jonas, Nordlicht Rechenzentren GmbH (Frankfurt, DE)</span>
+    <h2>Create the lot and lock the payment</h2>
+    <p class="lead">Nordlicht is building out an AI data center and agreed this order with ${sup}. Now the deal becomes a Lot Passport, and the money goes inside it.</p>
+    <div class="form">
+      <div class="field"><small>Goods</small><b>${fmt(QTY)} × ${P.name}</b></div>
+      <div class="field"><small>Price</small><b>$${fmt(P.unit)} each · ${money(T)}</b></div>
+      <div class="field"><small>Supplier</small><b>${sup} (CN)</b></div>
+      <div class="field"><small>Trade terms</small><b>HS ${P.hs.slice(0,4)}.${P.hs.slice(4)} · FOB ${SUP.port} → Hamburg</b></div>
+      <div class="field"><small>Inspector (agreed by both)</small><b>V-Trust Inspection</b></div>
+      <div class="field"><small>Pass rule (fixed now)</small><b>Test ${N} ${P.units}, ≤ ${AC} may fail</b></div>
+    </div>
+    <div><div class="field" style="border:0;padding:0 0 6px"><small>Pay from</small></div>
+      <div class="chips" role="group" aria-label="Pay from">${CHAINS.map(([k,l])=>`<button type="button" data-chain="${k}" aria-pressed="${S.chain===k}">${l}</button>`).join("")}</div></div>
+    <div class="row"><button type="button" class="primary" id="startPay">${S.wallet?"Mint passport and pay "+money(T):"Connect wallet to continue"}</button><button type="button" id="backFind">Choose another supplier</button></div>`;
+  if(s===1) return `<span class="role supplier">Supplier · ${sup}</span>
+    <h2>Make the goods</h2>
+    <p class="lead">${short} can see ${money(T)} sitting inside passport #${S.lot}. Nobody can take it out alone, so it is safe to buy components and start production.</p>
+    <div class="row"><button type="button" class="primary" data-a="ready">Production done, call the inspector</button></div>`;
+  if(s===2){
+    const pass=S.defects!==null&&S.defects<=AC;
+    return `<span class="role inspector">Inspector · V-Trust, at the ${SUP.city} factory</span>
+    <h2>Test random ${P.units} before anything ships</h2>
+    <p class="lead">Each one is checked for ${P.tests}.</p>
+    <div class="kv"><div><small>In lot</small><b>${fmt(LOT)}</b></div><div><small>To test</small><b>${N}</b></div><div><small>Pass if failures ≤</small><b>${AC}</b></div></div>
+    ${S.cartons?`<div><div class="field" style="border:0;padding:0 0 6px"><small>Cartons picked by the contract out of ${fmt(CARTONS)} (nobody knew them before)</small></div><div class="cartons">${S.cartons.map(c=>`<span>#${c}</span>`).join("")}</div></div>`:""}
+    <div class="row">
+      <button type="button" ${S.cartons?"":'class="primary"'} data-a="draw" ${S.cartons?"disabled":""}>1. Draw random cartons</button>
+      <button type="button" ${S.cartons&&S.defects===null?'class="primary"':""} data-a="inspect" ${!S.cartons||S.defects!==null?"disabled":""}>2. Test ${N} ${P.units}</button>
+    </div>
+    ${S.defects!==null?`<div class="banner ${pass?"ok":"no"}">${S.defects} failed. ${pass?`That is within the limit of ${AC}: the lot passes.`:`That is over the limit of ${AC}: the lot fails.`}</div>
+      <div class="row"><button type="button" class="primary" data-a="sign">3. Sign as v-trust.testnet</button><button type="button" data-a="forge">Try signing as the buyer</button></div>
+      ${S.blocked?`<div class="banner no"><b>Refused by the contract.</b> nordlicht-rz.testnet has no key allowed to call <code>submit_inspection</code>. Only the inspector's limited key can stamp this passport.</div>`:""}`:""}`;
+  }
+  if(s===3){
+    if(S.result==="pass") return `<span class="role buyer">Buyer · goods at sea, ${SUP.port} to Hamburg</span>
+      <h2>Passed. 90% paid, goods shipped.</h2>
+      <div class="banner ok">${short} received ${money(S.paid)}. ${money(S.locked)} stays inside the passport for 7 days in case something breaks in transit.</div>
+      <div class="row"><button type="button" class="primary" data-a="confirm">Goods arrived fine, release the rest</button></div>`;
+    return `<span class="role anyone">Settled by the contract</span>
+      <h2>Failed. Nothing shipped, money returned.</h2>
+      <div class="banner no">The bad batch never left the factory, and the full ${money(T)} went back to Nordlicht. Nobody ends up with both the goods and the money.</div>
+      <p class="lead">The passport keeps the failed result forever: ${short}'s score in Find goes down for the next buyer.</p>
+      <div class="row"><button type="button" class="primary" id="tryGood">Try again with a good batch</button></div>`;
+  }
+  return `<span class="role anyone">Anyone · no wallet needed</span>
+    <h2>The passport now proves this lot's quality</h2>
+    <p class="lead">Nordlicht installs the hardware in racks it leases to Kestrel Cloud B.V. in Amsterdam. The passport goes with the hardware: the test results, the signer and every payment come along.</p>
+    ${S.transferred?`<div class="banner ok">Owned by kestrel-cloud.testnet now. They can check the record themselves before putting the racks into service.</div>`:`<div class="row"><button type="button" class="primary" data-a="transfer">Transfer passport to Kestrel Cloud</button></div>`}`;
+}
+
+const EXPLAIN=[
+  "Every inspected lot leaves a passport on chain, so a supplier's record is public and can't be bought. The contract's find_suppliers view ranks suppliers by HS code and country from those passports. Change the product or quantity: the inspection plan updates from ISO 2859-1.",
+  "The buyer connects a wallet and pays in USDC. The contract mints one NFT for this lot and records the money as belonging to the passport, not to either company. Payments from other chains can be routed by NEAR Intents.",
+  "The supplier can see the money inside the passport but cannot take it. The buyer cannot pull it back alone either. So the factory can safely buy components and start production.",
+  "The contract draws random carton numbers, then the inspector tests the sample size ISO 2859-1 prescribes for this lot. Press 'Try signing as the buyer': the contract refuses, because only the inspector's limited key may write the result.",
+  "The inspection result moves the money by itself. Pass: 90% is paid and the goods ship, 10% waits 7 days. Fail: nothing ships and the buyer gets everything back. Switch to 'Bad batch' at the top to see the failure path.",
+  "This is what makes it an NFT that does something: after settlement the passport stays useful as a quality certificate that travels with the hardware, and the passports of a supplier become the track record buyers search in step one."
+];
+
+function render(){
+  const s=S.step;
+  const st=S.chosen?s+1:0;
+  [...$("steps").children].forEach((li,i)=>{li.className=i<st?"done":i===st?"now":"";if(S.result==="fail"&&i===3)li.className="bad";});
+  $("stage").innerHTML=stage();
+  $("explain").innerHTML=`<b>What happens here</b><span>${EXPLAIN[Math.min(st,5)]}</span>`;
+  const ps=$("prodSel");if(ps)ps.onchange=e=>{P=PRODUCTS.find(x=>x.id===e.target.value);QTY=P.qty;setDeal();render();};
+  const qi=$("qtyIn");if(qi)qi.onchange=e=>{QTY=Math.max(2,Math.min(500000,Math.round(+e.target.value||2)));setDeal();render();};
+  document.querySelectorAll("[data-sup]").forEach(b=>b.onclick=()=>{SUP=SUPPLIERS.find(x=>x.acc===b.dataset.sup);S.chosen=true;render();window.scrollTo({top:0,behavior:"smooth"});});
+  const bf=$("backFind");if(bf)bf.onclick=()=>{S.chosen=false;render();};
+  $("pGoods").textContent=P.name;$("pQty").textContent=`${fmt(QTY)} ${P.units.toUpperCase()}`;
+  $("pHs").textContent=`${P.hs.slice(0,4)}.${P.hs.slice(4)} · FOB ${SUP?SUP.port.toUpperCase():"—"}`;
+  $("pSup").textContent=SUP?`${SUP.name} · ${SUP.city} · CN`:"Not chosen yet";
+  $("pRoute").textContent=`CN → DE (HAMBURG)`;$("pRule").textContent=`≤ ${AC} OF ${N}`;$("pLbl").textContent=P.short;
+  const ph=$("pPhoto");if(ph.dataset.icon!==P.icon){ph.querySelector("svg").outerHTML=ICON[P.icon];ph.dataset.icon=P.icon;
+    const g=$("pGhost");if(g){const t=document.createElement("div");t.innerHTML=ICON[P.icon];const n=t.firstChild;n.setAttribute("class","ghost");n.id="pGhost";n.setAttribute("width","56");n.setAttribute("height","56");g.replaceWith(n);}
+    ph.setAttribute("aria-label","Product: "+P.name);}
+  document.querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>act(b.dataset.a));
+  document.querySelectorAll("[data-chain]").forEach(b=>b.onclick=()=>{S.chain=b.dataset.chain;render();});
+  const tg=$("tryGood");if(tg)tg.onclick=()=>{S.keepChoice=true;setQ(false);};
+  // passport
+  const no=S.lot?"LP-"+S.lot:"LP-—";
+  $("fNo").textContent=no;$("tokTop").textContent=S.lot?"#"+S.lot:"#—";
+  $("fDate").textContent=S.lot?"09 NOV 2026":"—";
+  $("pSub").textContent=S.lot?(S.result==="fail"?"Status: rejected at the factory":S.claimDone?"Status: completed · quality verified":S.result==="pass"?"Status: passed · in transit":"Status: active · money locked"):"Not minted yet";
+  $("vIn").textContent=money(S.locked).replace(".00","");
+  $("lIn").textContent=money(S.locked);$("lPaid").textContent=money(S.paid);$("lBack").textContent=money(S.back);
+  $("bIn").style.width=(100*S.locked/T)+"%";$("bPaid").style.width=(100*S.paid/T)+"%";$("bBack").style.width=(100*S.back/T)+"%";
+  $("mrz").textContent=mrz();
+  const COL={mint:"#2C47C9",lock:"#B07A16",ready:"#5A6B8C",pass:"#1F8A62",paid:"#1F8A62",fail:"#C2342C",refund:"#C2342C",xfer:"#6B3FB5"};
+  const SHAPE={mint:"rect",lock:"round",ready:"oval",pass:"round",paid:"rect",fail:"round",refund:"rect",xfer:"oval"};
+  $("stamps").innerHTML=S.stamps.length?S.stamps.map(st=>`<div class="stamp2 ${SHAPE[st.kind]} ${st.fresh?"new":""}" style="color:${COL[st.kind]};--r:${st.r}deg"><span class="${st.kind==="pass"||st.kind==="fail"?"big":""}">${st.title}</span><small>${st.sub}</small><small>${st.date}</small><small>${st.h}</small></div>`).join(""):`<div class="sempty">No stamps yet. The first one appears when the passport is minted.</div>`;
+  S.stamps.forEach(st=>st.fresh=false);
+  if(S.dots){
+    $("iCount").textContent=`${S.defects} / ${N} modules failed`;
+    $("iBody").className="";
+    $("iBody").innerHTML=`<div class="dots">${S.dots.map(d=>`<i class="${d?"bad":"ok"}"></i>`).join("")}</div><div class="signer" style="margin-top:6px">Cartons ${S.cartons.map(c=>"#"+c).join(" · ")} · ${S.result?"signed by v-trust.testnet":"not signed yet"}</div>`;
+  } else {$("iCount").textContent="";$("iBody").className="empty";$("iBody").innerHTML=S.cartons?`Cartons drawn: ${S.cartons.map(c=>"#"+c).join(" · ")}. Waiting for the check.`:"No inspection yet. Only v-trust.testnet can write here.";}
+  $("pOwner").textContent=S.owner;
+  const sp=$("startPay");if(sp)sp.onclick=()=>openM(S.wallet?"pay":"connect");
+  if(typeof drawGallery==="function")drawGallery();
+}
+function mrz(){
+  const pad=(x,n)=>(x+"<".repeat(n)).slice(0,n);
+  const id=S.lot?S.lot:"0000";
+  const st=S.result==="fail"?"REJ":S.claimDone?"CMP":S.result==="pass"?"PAS":S.lot?"ACT":"NEW";
+  const l1=pad("L<CHNLOT<PASSPORT<<"+P.name.toUpperCase().replace(/[^A-Z0-9]+/g,"<"),44);
+  const l2=pad("LP"+id+"<<"+QTY+"PCS<"+st+"<HS"+P.hs+"<FOB<CN<DE<N"+N+"AC"+AC,44);
+  return l1+"\n"+l2;
+}
+function guilloche(cv,hue){
+  const r=cv.getBoundingClientRect(),dpr=window.devicePixelRatio||1;cv.width=r.width*dpr;cv.height=r.height*dpr;
+  const g=cv.getContext("2d");g.scale(dpr,dpr);g.lineWidth=.6;
+  const cx=r.width*0.62,cy=r.height*0.42;
+  for(let k=0;k<26;k++){
+    g.strokeStyle=k%2?`hsla(${hue},45%,38%,.16)`:`hsla(${hue+40},55%,45%,.12)`;g.beginPath();
+    for(let t=0;t<=Math.PI*2+.01;t+=.01){
+      const R=40+k*7+10*Math.sin(t*9+k*.4),x=cx+R*Math.cos(t)*1.35,y=cy+R*Math.sin(t)*.9;
+      t===0?g.moveTo(x,y):g.lineTo(x,y);}
+    g.stroke();}
+  for(let k=0;k<14;k++){g.strokeStyle=`hsla(${hue+180},30%,35%,.08)`;g.beginPath();
+    for(let x=0;x<=r.width;x+=3){const y=r.height-14-k*5+6*Math.sin(x/18+k);x===0?g.moveTo(x,y):g.lineTo(x,y);}g.stroke();}
+}
+function setQ(bad){S.bad=bad;S.keepChoice=true;$("qGood").setAttribute("aria-pressed",String(!bad));$("qBad").setAttribute("aria-pressed",String(bad));reset();}
+$("qGood").onclick=()=>setQ(false);$("qBad").onclick=()=>setQ(true);$("restart").onclick=()=>reset();
+// ---------- wallet + payment ----------
+const WALLETS=[["MyNearWallet","#3C5BD8","M"],["Meteor Wallet","#6A3FD9","Me"],["HOT Wallet","#E0552E","H"]];
+let M={view:null,prog:0,tx:null};
+function openM(v){M.view=v;M.prog=0;M.tx=null;$("overlay").classList.add("open");drawM();}
+function closeM(){$("overlay").classList.remove("open");M.view=null;}
+function fakeTx(){const c="123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";let h="";for(let i=0;i<44;i++)h+=c[Math.floor(Math.random()*c.length)];return h;}
+const FEE=()=>S.chain==="near"?0:+(T*0.002).toFixed(2);
+function drawM(){
+  const m=$("modal");
+  m.classList.toggle("wide",M.view==="gallery");
+  if(M.view==="gallery"){
+    m.innerHTML=galleryHTML();
+    m.querySelectorAll("[data-pass]").forEach(b=>b.onclick=()=>{M.sel=b.dataset.pass;drawM();});
+    const gb=$("gBack");if(gb)gb.onclick=()=>{M.sel=null;drawM();};
+    const go=$("gOpen");if(go)go.onclick=()=>{closeM();document.querySelector(".book").scrollIntoView({behavior:"smooth"});};
+    const gc=$("gConnect");if(gc)gc.onclick=()=>openM("connect");
+  }
+  if(M.view==="connect"){
+    m.innerHTML=`<div class="mh"><h3 id="mTitle">Connect a NEAR wallet</h3><button type="button" id="mClose">Close</button></div>
+    <p class="lead">Network: testnet. Your keys stay in your wallet; this app only asks it to sign.</p>
+    <div class="wlist">${WALLETS.map(([n,c,i])=>`<button type="button" data-w="${n}"><span class="ic" style="background:${c}">${i}</span><span><b>${n}</b><br><span class="lead" style="font-size:13px">Sign in as nordlicht-rz.testnet</span></span></button>`).join("")}</div>
+    <p class="lead" style="font-size:12.5px">Demo: no wallet opens here. In the real app this list comes from NEAR Wallet Selector.</p>`;
+    m.querySelectorAll("[data-w]").forEach(b=>b.onclick=()=>{S.wallet={name:b.dataset.w,acc:"nordlicht-rz.testnet"};closeM();render();});
+  }
+  if(M.view==="pay"){
+    const fee=FEE(),tot=T+fee,cname=CHAINS.find(x=>x[0]===S.chain)[1];
+    let body="";
+    if(M.prog===0){
+      body=`<div class="chips" role="group" aria-label="Pay from">${CHAINS.map(([k,l])=>`<button type="button" data-chain2="${k}" aria-pressed="${S.chain===k}">${l}</button>`).join("")}</div>
+        <div class="route"><span>${cname}</span>→${S.chain==="near"?"":"<span>NEAR Intents</span>→"}<span>USDC on NEAR</span>→<span>Passport #next</span></div>
+        <div class="sum"><div><span>Goods</span><span>${money(T)}</span></div><div><span>${S.chain==="near"?"Cross-chain fee":"NEAR Intents fee (0.2%)"}</span><span>${money(fee)}</span></div><div><span>Network gas</span><span>covered by the app</span></div><div class="tot"><span>You pay</span><span>${money(tot)}</span></div></div>
+        <button type="button" class="primary" id="mGo">Continue in ${S.wallet.name}</button>`;
+      m.innerHTML=`<div class="mh"><h3 id="mTitle">Pay into the passport</h3><button type="button" id="mClose">Close</button></div>
+        ${body}`;
+    } else if(M.prog===1){
+      m.innerHTML=`<div class="mh"><h3 id="mTitle">${S.wallet.name} · approve transaction</h3><button type="button" id="mClose">Cancel</button></div>
+      <div class="txreq"><div class="bar"><span>testnet</span><span>${S.wallet.acc}</span></div><dl>
+        <dt>To</dt><dd>usdc.testnet</dd><dt>Method</dt><dd>ft_transfer_call</dd>
+        <dt>receiver_id</dt><dd>lot-passport.testnet</dd><dt>amount</dt><dd>${Math.round(T*1e6)} (${money(T)} USDC)</dd>
+        <dt>msg</dt><dd>lot id of the new passport</dd><dt>Deposit</dt><dd>1 yoctoNEAR</dd><dt>Gas</dt><dd>100 Tgas</dd></dl></div>
+      <p class="lead" style="font-size:13px">If the amount or the sender doesn't match the deal, the contract refuses and the money goes back automatically.</p>
+      <div class="row"><button type="button" class="primary" id="mApprove">Approve</button><button type="button" id="mReject">Reject</button></div>`;
+    } else {
+      const steps=[S.chain==="near"?"Wallet signed ft_transfer_call":"Swap routed through NEAR Intents","Included in a block","Contract: ft_on_transfer accepted, money locked"];
+      const done=Math.min(M.prog-2,steps.length);
+      m.innerHTML=`<div class="mh"><h3 id="mTitle">${done>=steps.length?"Payment locked":"Processing"}</h3>${done>=steps.length?'<button type="button" id="mClose">Close</button>':""}</div>
+      <ol class="prog">${steps.map((t,i)=>`<li class="${i<done?"done":i===done?"now":""}"><i aria-hidden="true"></i>${t}</li>`).join("")}</ol>
+      ${done>=steps.length?`<div class="receipt"><b>Proof of payment</b><span>Transaction hash</span><code>${M.tx}</code><a href="https://testnet.nearblocks.io/txns/${M.tx}">Open in NearBlocks explorer</a><span class="lead" style="font-size:12px">Demo hash: it opens a real explorer but this transaction doesn't exist. In the built app this link is the real one.</span></div><button type="button" class="primary" id="mDone">See the passport</button>`:""}`;
+      if(done<steps.length) setTimeout(()=>{M.prog++;drawM();},650);
+    }
+    m.querySelectorAll("[data-chain2]").forEach(b=>b.onclick=()=>{S.chain=b.dataset.chain2;drawM();});
+    const go=$("mGo");if(go)go.onclick=()=>{M.prog=1;drawM();};
+    const ap=$("mApprove");if(ap)ap.onclick=()=>{M.tx=fakeTx();M.prog=2;drawM();};
+    const rj=$("mReject");if(rj)rj.onclick=()=>{M.prog=0;drawM();};
+    const dn=$("mDone");if(dn)dn.onclick=()=>{closeM();act("mint");};
+  }
+  const cl=$("mClose");if(cl)cl.onclick=()=>{if(M.view==="pay"&&M.prog>=2&&M.tx){closeM();act("mint");}else closeM();};
+}
+$("overlay").addEventListener("click",e=>{if(e.target.id==="overlay")closeM();});
+addEventListener("keydown",e=>{if(e.key==="Escape"&&M.view)closeM();});
+$("walletBtn").onclick=()=>{if(S.wallet){S.wallet=null;render();}else openM("connect");};
+
+// ---------- NFT card image (same layout as the contract's passport_svg) ----------
+function esc(t){return String(t).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function cardIcon(k){const raw=ICON[k];if(!raw)return "";const inner=raw.replace(/^<svg[^>]*>/,"").replace(/<\/svg>$/,"");return `<rect x="432" y="80" width="104" height="104" rx="18" fill="#DDE8EF"/><g transform="translate(441 89) scale(0.9)">${inner}</g>`;}
+function cardSVG(d){
+  const L={created:["AWAITING PAYMENT","#8FA0C8"],funded:["MONEY LOCKED","#E7B65C"],ready:["READY FOR INSPECTION","#8FA0C8"],passed:["PASSED","#3DD9A5"],rejected:["REJECTED","#FF6B5B"],completed:["COMPLETED","#3DD9A5"]}[d.status];
+  let rings="";for(let i=0;i<9;i++)rings+=`<ellipse cx="470" cy="150" rx="${60+i*16}" ry="${40+i*11}" fill="none" stroke="#E7B65C" stroke-opacity="0.09"/>`;
+  const clip=(t,n)=>t.length>n?t.slice(0,n)+"…":t;
+  const result=d.defects==null?`PLAN ${d.n} SAMPLES · LIMIT ${d.ac}`:`${d.defects} / ${d.n} DEFECTIVE · LIMIT ${d.ac}`;
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="600" height="380" viewBox="0 0 600 380"><rect width="600" height="380" rx="28" fill="#0F1B3D"/><rect x="14" y="14" width="572" height="352" rx="18" fill="none" stroke="#E7B65C" stroke-opacity="0.35"/>${rings}<text x="40" y="56" font-family="monospace" font-size="13" letter-spacing="4" fill="#E7B65C">LOT PASSPORT · NEP-171</text>${cardIcon(d.icon)}<text x="560" y="56" text-anchor="end" font-family="monospace" font-size="22" fill="#EEF1FA">#${esc(d.id)}</text><text x="40" y="104" font-family="sans-serif" font-weight="800" font-size="27" fill="#EEF1FA">${esc(clip(d.product,18).toUpperCase())}</text><text x="40" y="132" font-family="monospace" font-size="14" fill="#A7B1CC">HS ${esc(d.hs)} · ${fmt(d.qty)} PCS · ${esc(d.inc)}</text><text x="40" y="168" font-family="monospace" font-size="13" fill="#EEF1FA">FROM ${esc(clip(d.supplier,34).toUpperCase())} (${d.o})</text><text x="40" y="188" font-family="monospace" font-size="13" fill="#EEF1FA">TO   NORDLICHT RECHENZENTREN GMBH (DE)</text><text x="40" y="226" font-family="monospace" font-size="12" letter-spacing="2" fill="#A7B1CC">HOLDS</text><text x="40" y="260" font-family="sans-serif" font-weight="800" font-size="32" fill="#E7B65C">${money(d.held).slice(1)} USDC</text><text x="40" y="304" font-family="monospace" font-size="12.5" fill="#A7B1CC">ISO 2859-1 AQL 2.5 · ${result}</text><text x="40" y="328" font-family="monospace" font-size="12.5" fill="#A7B1CC">INSPECTED BY V-TRUST INSPECTION</text><g transform="rotate(-10 470 262)"><rect x="380" y="232" width="180" height="58" rx="10" fill="none" stroke="${L[1]}" stroke-width="4"/><text x="470" y="270" text-anchor="middle" font-family="sans-serif" font-weight="800" font-size="${L[0].length>14?13:L[0].length>9?19:24}" fill="${L[1]}">${L[0]}</text></g></svg>`;
+  return "data:image/svg+xml;charset=utf-8,"+encodeURIComponent(svg);
+}
+const PAST=[
+  {id:"0041",product:"Liquid cooling cold plates",icon:"plate",qty:3000,hs:"8419.50",inc:"FOB",supplier:"Ningbo Coldstream Thermal Tech Co., Ltd.",o:"CN",status:"completed",held:0,defects:3,n:125,ac:7,price:555000,date:"21 OCT 2026"},
+  {id:"0052",product:"DDR5 RDIMM 64 GB memory modules",icon:"board",qty:5000,hs:"8473.30",inc:"FOB",supplier:"Hefei Xinchip Memory Co., Ltd.",o:"CN",status:"completed",held:0,defects:4,n:200,ac:10,price:1300000,date:"28 OCT 2026"},
+  {id:"0057",product:"3.2 kW GPU server power supplies",icon:"psu",qty:1200,hs:"8504.40",inc:"FOB",supplier:"Dongguan Voltline Power Co., Ltd.",o:"CN",status:"rejected",held:0,defects:9,n:80,ac:5,price:492000,date:"02 NOV 2026"}
+];
+function curStatus(){return S.result==="fail"?"rejected":S.claimDone?"completed":S.result==="pass"?"passed":S.step>=2?"ready":S.lot?"funded":"created";}
+function myPassports(){
+  if(!S.wallet)return [];
+  const list=[];
+  if(S.lot&&!S.transferred)list.push({id:S.lot,product:P.name,icon:P.icon,qty:LOT,hs:P.hs.slice(0,4)+"."+P.hs.slice(4),inc:"FOB",supplier:SUP.name,o:"CN",status:curStatus(),held:S.locked,defects:S.result?S.defects:null,n:N,ac:AC,price:T,date:"09 NOV 2026",cur:true});
+  return list.concat(PAST);
+}
+const STLABEL={created:"Waiting for payment",funded:"Money locked",ready:"Ready for inspection",passed:"Passed · 10% held",rejected:"Rejected · refunded",completed:"Completed"};
+function galleryHTML(){
+  if(!S.wallet)return `<div class="mh"><h3 id="mTitle">My passports</h3><button type="button" id="mClose">Close</button></div><p class="lead">Connect a wallet to see the passports it holds.</p><div class="row"><button type="button" class="primary" id="gConnect">Connect wallet</button></div>`;
+  const list=myPassports();
+  if(M.sel){const d=list.find(x=>x.id===M.sel);if(d)return `<div class="mh"><h3 id="mTitle">Lot Passport #${d.id}</h3><div class="row"><button type="button" id="gBack">All passports</button><button type="button" id="mClose">Close</button></div></div>
+    <div class="pdet"><img src="${cardSVG(d)}" alt="Lot Passport #${d.id}, ${esc(d.product)}, ${d.status}">
+    <div class="pfacts"><div><span>Goods</span><b>${esc(d.product)}</b></div><div><span>Quantity</span><b>${fmt(d.qty)}</b></div><div><span>HS code · Incoterm</span><b>${d.hs} · ${d.inc}</b></div><div><span>Supplier</span><b>${esc(d.supplier)}</b></div><div><span>Route</span><b>CN → DE</b></div><div><span>Price</span><b>${money(d.price||0)}</b></div><div><span>Inspection</span><b>${d.defects==null?`Plan: ${d.n} samples, ≤ ${d.ac}`:`${d.defects} of ${d.n} failed (limit ${d.ac})`}</b></div><div><span>Status</span><b>${STLABEL[d.status]}</b></div><div><span>Issued</span><b>${d.date}</b></div>
+    ${d.cur?`<div class="row" style="border:0"><button type="button" class="primary" id="gOpen">Open in the main view</button></div>`:""}</div></div>`;}
+  return `<div class="mh"><h3 id="mTitle">My passports · ${S.wallet.acc}</h3><button type="button" id="mClose">Close</button></div>
+    <p class="lead" style="font-size:13.5px">How each Lot Passport shows up in a NEAR wallet's NFT tab. The contract draws the card from the lot's live state, so its stamp changes when the lot does. Tap one for details.</p>
+    <div class="ggrid2">${list.map(d=>`<button type="button" class="nftc ${d.cur?"cur":""}" data-pass="${d.id}"><img src="${cardSVG(d)}" alt=""><span class="meta"><span>${ICON[d.icon]||""}${esc(d.product)}</span><b>#${d.id}</b></span></button>`).join("")}</div>
+    ${S.transferred?`<p class="lead" style="font-size:13px">#${S.lot} was transferred to kestrel-cloud.testnet and now shows in their wallet instead.</p>`:""}`;
+}
+function drawGallery(){
+  $("walletTxt").textContent=S.wallet?S.wallet.acc:"Connect wallet";$("walletBtn").classList.toggle("on",!!S.wallet);
+  $("passCount").textContent=myPassports().length;
+  if(M.view==="gallery")drawM();
+}
+$("passBtn").onclick=()=>{openM("gallery");M.sel=null;drawM();};
+reset();
+const micro="LOTPASSPORT·NEP171·ISO2859·AQL2.5·".repeat(12);
+document.getElementById("micro1").textContent=micro;document.getElementById("micro2").textContent=micro;
+function drawG(){guilloche(document.getElementById("g1"),168);guilloche(document.getElementById("g2"),205);}
+drawG();addEventListener("resize",drawG);
+</script>
+</body>
+</html>
